@@ -64,7 +64,7 @@ class Route
             $params=$refConstructor->getParameters();
             $argList=[];
             foreach($params as $param){
-                $depName=$param->getType()->getName();
+                $depName=$param->getClass()->getName();
                 $argList[]=self::$container->get($depName);
             }
             $controller=$reflector->newInstanceArgs($argList);
@@ -75,7 +75,7 @@ class Route
         $argList=$routeParam;
         $n=count($params);
         for($i=count($argList); $i<$n; ++$i) {
-            $depName=$params[$i]->getType()->getName();
+            $depName=$params[$i]->getClass()->getName();
             $argList[]=self::$container->get($depName);
         }
         call_user_func_array([$controller, $methodName], $argList);
@@ -108,6 +108,8 @@ class Route
     {
         return self::getVar('uri', 'REQUEST_URI', function($m){
             //轉換為相對根目錄
+            $m=strtok($m ,'#');
+            $m=strtok($m ,'?');
             $arr=Url::getPathArray($m);
             $n=min(count(Url::$root), count($arr));
             for($i=0; $i<$n; ++$i) {
