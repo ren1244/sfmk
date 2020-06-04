@@ -35,10 +35,15 @@ class Response
         exit($str);
     }
     
-    public static function success($str='Ok')
+    public static function success($data='Ok')
     {
         http_response_code(200);
-        exit($str);
+        if(gettype($data)==='string') {
+            exit($data);
+        } else {
+            header('Content-Type: application/json; charset=utf-8');
+            exit(json_encode($data, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+        }
     }
     
     public static function redirect($url)

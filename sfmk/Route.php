@@ -42,13 +42,19 @@ class Route
         if($n!==$m) {
             return;
         }
+        $routeParams=[];
         for($i=0;$i<$n;++$i){
+            $len=strlen($testUri[$i]);
+            if($len>=2 && $testUri[$i][0]==='{' && $testUri[$i][$len-1]==='}') {
+                $routeParams[]=$uri[$i];
+                continue;
+            }
             if($testUri[$i]!==$uri[$i]) {
                 break;
             }
         }
         if($i===$n) {
-            self::executeRoute($cbk);
+            self::executeRoute($cbk, $routeParams);
         }
     }
     
@@ -94,7 +100,15 @@ class Route
             }
             self::executeController($controller, $method, $routeParam);
         } else {
-            $cbk();
+            $reflect=new \ReflectionFunction($cbk);
+            $params=$reflect->getParameters();
+            $argList=$routeParam;
+            $n=count($params);
+            for($i=count($argList); $i<$n; ++$i) {
+                $depName=$params[$i]->getType()->getName();
+                $argList[]=self::$container->get($depName);
+            }
+            call_user_func_array($cbk, $argList);
         }
         exit();
     }
@@ -108,6 +122,8 @@ class Route
     {
         return self::getVar('uri', 'REQUEST_URI', function($m){
             //轉換為相對根目錄
+            $m=strtok($m ,'#');
+            $m=strtok($m ,'?');
             $arr=Url::getPathArray($m);
             $n=min(count(Url::$root), count($arr));
             for($i=0; $i<$n; ++$i) {
