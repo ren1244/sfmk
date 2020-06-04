@@ -30,6 +30,7 @@ class Url
     
     public static function getResource($theFile)
     {
-        return '/'.implode('/', self::$root).'/public/'.$theFile;
+        $version=getenv('SITE_VERSION');
+        return '/'.implode('/', self::$root).'/public/'.$theFile.'?v='.$version;
     }
 }

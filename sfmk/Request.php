@@ -4,9 +4,13 @@ namespace sfmk;
 
 class Request
 {
-    public function __construct()
+    public static function required($key, $filter)
     {
-        $this->method=$_SERVER['REQUEST_METHOD'];
-        //REQUEST_URI
+        
+    }
+    
+    public static function optional($key, )
+    {
+        
     }
 }

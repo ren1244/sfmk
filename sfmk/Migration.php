@@ -181,7 +181,7 @@ class Migration
             $n=count($params);
             $argList=[];
             for($i=count($argList); $i<$n; ++$i) {
-                $depName=$params[$i]->getType()->getName();
+                $depName=$params[$i]->getClass()->getName();
                 $argList[]=$this->container->get($depName);
             }
             call_user_func_array([$obj, $method], $argList);
