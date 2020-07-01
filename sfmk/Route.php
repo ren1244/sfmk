@@ -9,6 +9,8 @@ class Route
     private static $method=false;
     private static $uri=false;
     private static $container=false;
+    private static $filters=[];
+    private static $filterStatus=true;
     
     public static function setContainer(Container $container)
     {
@@ -31,8 +33,58 @@ class Route
         self::testToRun($testUri, $cbk);
     }
     
+    /** 
+     * 註冊 filter
+     *
+     * @param string $filterKey 用於辨識 filter 的名稱
+     * @param array|string|function $filterContent 定義過濾的方法
+     * @return void
+     */
+    public static function filterRegistry($filterKey, $filterContent)
+    {
+        if(isset(self::$filters[$filterKey])) {
+            throw new \Exception('duplicate filterKey');
+        }
+        self::$filters[$filterKey]=$filterContent;
+    }
+    
+    public static function useFilter($filterKey='none')
+    {
+        if($filterKey==='none'){
+            self::$filterStatus=true;
+            return;
+        }
+        if(!isset(self::$filters[$filterKey])) {
+            throw new \Exception('No such filter');
+        }
+        $filterContent=&self::$filters[$filterKey];
+        $fType=gettype($filterContent);
+        if($fType==='boolean') {
+            self::$filterStatus=$filterContent;
+            return;
+        } elseif($fType==='array') {
+            foreach($filterContent as $f) {
+                if(!self::useFilter($f)) {
+                    self::$filters[$filterKey]=false;
+                    self::$filterStatus=$false;
+                    return;
+                }
+            }
+            self::$filters[$filterKey]=true;
+            self::$filterStatus=$true;
+            return;
+        } else {
+            self::$filterStatus=
+            self::$filters[$filterKey]=
+            self::executeIoCFunction($filterContent);
+        }
+    }
+    
     private static function testToRun($testUri, $cbk)
     {
+        if(!self::$filterStatus) {
+            return;
+        }
         $testUri=Url::getPathArray($testUri);
         $uri=self::getUri();
         //比對 $testUri 與 self::$uri 是否符合，是的話執行 cbk
@@ -54,63 +106,52 @@ class Route
             }
         }
         if($i===$n) {
-            self::executeRoute($cbk, $routeParams);
+            self::executeIoCFunction($cbk, $routeParams, '\\app\\controller\\');
+            exit();
         }
     }
     
-    public static function executeController($controllerName, $methodName, $routeParam=[])
+    /** 
+     * 執行某 'class@方法' or Closure
+     *
+     * @param sting|function $cbk 要被執行的函式或方法
+     * @param array $routeParam 其他主動添加的參數
+     * @return void
+     */
+    private static function executeIoCFunction($cbk, $otherParam=[], $spacename='')
     {
-        $className='\\app\\controller\\'.$controllerName;
-        $reflector=new \ReflectionClass($className);
-        $refConstructor=$reflector->getConstructor();
-        //建立 controller 物件
-        if(is_null($refConstructor)) {
-            $controller=$reflector->newInstanceWithoutConstructor();
-        } else {
-            $params=$refConstructor->getParameters();
-            $argList=[];
-            foreach($params as $param){
-                $depName=$param->getClass()->getName();
-                $argList[]=self::$container->get($depName);
-            }
-            $controller=$reflector->newInstanceArgs($argList);
-        }
-        //呼叫 method
-        $refMethod=$reflector->getMethod($methodName);
-        $params=$refMethod->getParameters();
-        $argList=$routeParam;
-        $n=count($params);
-        for($i=count($argList); $i<$n; ++$i) {
-            $depName=$params[$i]->getClass()->getName();
-            $argList[]=self::$container->get($depName);
-        }
-        call_user_func_array([$controller, $methodName], $argList);
-    }
-    
-    private static function executeRoute($cbk, $routeParam=[])
-    {
-        if(gettype($cbk)==='string') {
-            $pos=strpos($cbk, '@');
-            if($pos===false) {
-                $controller=$cbk;
-                $method='index';
+        
+        if(gettype($cbk)==='string') { //視為 calssName@method
+            $cbk=explode('@', $spacename.$cbk);
+            $reflector=new \ReflectionClass($cbk[0]);
+            $refConstructor=$reflector->getConstructor();
+            //建立物件
+            if(is_null($refConstructor)) {
+                $objInstance=$reflector->newInstanceWithoutConstructor();
             } else {
-                $controller=substr($cbk, 0, $pos);
-                $method=substr($cbk, $pos+1);
+                $argList=self::getReflectArgList($refConstructor);
+                $objInstance=$reflector->newInstanceArgs($argList);
             }
-            self::executeController($controller, $method, $routeParam);
-        } else {
+            //呼叫 method
+            $refMethod=$reflector->getMethod($cbk[1]);
+            $argList=self::getReflectArgList($refMethod, $otherParam);
+            return call_user_func_array([$objInstance, $cbk[1]], $argList);
+        } else { // Closure Function
             $reflect=new \ReflectionFunction($cbk);
-            $params=$reflect->getParameters();
-            $argList=$routeParam;
-            $n=count($params);
-            for($i=count($argList); $i<$n; ++$i) {
-                $depName=$params[$i]->getClass()->getName();
-                $argList[]=self::$container->get($depName);
-            }
-            call_user_func_array($cbk, $argList);
+            $argList=self::getReflectArgList($reflect, $otherParam);
+            return call_user_func_array($cbk, $argList);
         }
-        exit();
+    }
+    
+    private static function getReflectArgList(&$reflector, $appendParams=[])
+    {
+        $params=$reflector->getParameters();
+        $n=count($params);
+        for($i=count($appendParams); $i<$n; ++$i) {
+            $depName=$params[$i]->getClass()->getName();
+            $appendParams[]=self::$container->get($depName);
+        }
+        return $appendParams;
     }
     
     private static function getMethod()
