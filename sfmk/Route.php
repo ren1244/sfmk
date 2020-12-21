@@ -71,7 +71,7 @@ class Route
                 }
             }
             self::$filters[$filterKey]=true;
-            self::$filterStatus=$true;
+            self::$filterStatus=true;
             return;
         } else {
             self::$filterStatus=
