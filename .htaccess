@@ -1,4 +1,7 @@
 RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php/$1 [L]
+
+RewriteRule ^assets/([\s\S]*)$ public/$1 [L,NC,QSA]
+
+RewriteCond %{REQUEST_URI} !^/sfmk/public
+RewriteCond %{REQUEST_URI} !^/sfmk/index.php
+RewriteRule ^([\s\S]*)$ index.php/$1 [L,NC,QSA]
