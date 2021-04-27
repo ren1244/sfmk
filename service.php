@@ -7,6 +7,9 @@ $ct->add(\PDO::class)
    ->addArgument(getenv('DB_USER'))
    ->addArgument(getenv('DB_PASSWORD'))
    ->setShared();
+$ct->add(sfmk\DBLib::class)
+   ->addArgument(\PDO::class)
+   ->setShared();
 $ct->add(sfmk\Migration::class)
    ->addArgument(\PDO::class)
    ->addArgument(getenv('DB_NAME')) //dbname
